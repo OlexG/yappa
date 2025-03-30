@@ -1,13 +1,23 @@
 "use client";
 import React, { useState, useRef } from 'react';
+import { ConversationManager } from '../lib/conversationManager';
 
 export default function Home() {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [reply, setReply] = useState('');
+  const [audioUrl, setAudioUrl] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   // Use a ref to immediately collect audio chunks without causing re-renders
   const audioChunksRef = useRef<Blob[]>([]);
+  // Use a ref for the conversation manager so it persists between renders
+  const conversationManagerRef = useRef(
+    new ConversationManager({
+      role: "system",
+      content:
+        "You are a licensed therapist who specializes in Cognitive Behavioral Therapy (CBT). Engage kindly, guide the user through their thoughts, and provide structured therapeutic advice. Stay in character as a CBT therapist throughout the conversation.",
+    })
+  );
 
   const startRecording = async () => {
     try {
@@ -37,9 +47,11 @@ export default function Home() {
 
         const formData = new FormData();
         formData.append('file', audioBlob, 'recording.webm');
+        // Append the conversation context as a JSON string
+        formData.append('conversation', JSON.stringify(conversationManagerRef.current.getMessages()));
 
         try {
-          // Call the combined API route which returns both the transcript and AI reply
+          // Call the combined API route which returns transcript, AI reply, and audio as a data URL
           const res = await fetch('/api/combined', {
             method: 'POST',
             body: formData,
@@ -47,13 +59,23 @@ export default function Home() {
           const data = await res.json();
           if (data.transcript) {
             setTranscript(data.transcript);
+            // Add the user's message to the conversation history
+            conversationManagerRef.current.addUserMessage(data.transcript);
           } else {
             setTranscript('Transcription failed.');
           }
           if (data.reply) {
             setReply(data.reply);
+            // Add the AI's reply to the conversation history
+            conversationManagerRef.current.addAssistantMessage(data.reply);
           } else {
             setReply('No AI response.');
+          }
+          // Handle the audio key correctly: set the returned audio (base64 data URL) into state
+          if (data.audio) {
+            const audioDataUrl = `data:audio/mp3;base64,${data.audio}`;
+            console.log(audioDataUrl)
+            setAudioUrl(audioDataUrl);
           }
         } catch (error) {
           console.error('Error processing audio:', error);
@@ -89,6 +111,12 @@ export default function Home() {
         <h2>AI Response</h2>
         <p style={{ color: 'blue' }}>{reply}</p>
       </div>
+      {audioUrl && (
+        <div>
+          <h2>Audio Response</h2>
+          <audio controls src={audioUrl}></audio>
+        </div>
+      )}
     </div>
   );
 }
