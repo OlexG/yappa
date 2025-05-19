@@ -18,17 +18,17 @@ export const APP_CONFIG: AppConfig = {
     {
       displayName: '5 minutes',
       totalMinutes: 5,
-      sections: 5 // 5 sections of 1 minute each
+      sections: 5
+    },
+    {
+      displayName: '15 minutes',
+      totalMinutes: 15,
+      sections: 10
     },
     {
       displayName: '1 hour',
       totalMinutes: 60,
-      sections: 10 // 10 sections of 6 minutes each
-    },
-    {
-      displayName: '10 hours',
-      totalMinutes: 600,
-      sections: 20 // 20 sections of 30 minutes each
+      sections: 20
     }
   ],
   

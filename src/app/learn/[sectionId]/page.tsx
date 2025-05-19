@@ -18,6 +18,7 @@ export default function LearnSection() {
     sections: number;
     timePerSection: number;
   } | null>(null);
+  const [isAudioLoading, setIsAudioLoading] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const params = useParams();
@@ -54,54 +55,76 @@ export default function LearnSection() {
     };
   }, []);
   
-  // Load topic and time allocation from localStorage on first render
+  // Add this function near the top of the component
+  const clearLearningData = () => {
+    // Clear all learning-related localStorage items
+    localStorage.removeItem('learningTopic');
+    localStorage.removeItem('learningTime');
+    localStorage.removeItem('learningSections');
+    
+    // Clear all section content
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('learningContent_')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+  };
+  
+  // Update the useEffect that loads data
   useEffect(() => {
     const savedTopic = localStorage.getItem('learningTopic');
     const savedTimeStr = localStorage.getItem('learningTime');
     
-    if (savedTopic && savedTimeStr) {
-      setTopic(savedTopic);
-      const totalMinutes = parseInt(savedTimeStr);
+    if (!savedTopic || !savedTimeStr) {
+      router.push('/');
+      return;
+    }
+
+    const totalMinutes = parseInt(savedTimeStr);
+    const config = getTimeConfig(totalMinutes);
+    
+    if (!config) {
+      router.push('/');
+      return;
+    }
+
+    // Only clear data if we're on section 1
+    if (sectionId === 1) {
+      clearLearningData();
+      // Set the data again after clearing
+      localStorage.setItem('learningTopic', savedTopic);
+      localStorage.setItem('learningTime', savedTimeStr);
+    }
+
+    setTopic(savedTopic);
+    const timePerSection = config.totalMinutes / config.sections;
+    
+    setTimeConfig({
+      totalMinutes: config.totalMinutes,
+      sections: config.sections,
+      timePerSection
+    });
+
+    // Try to load sections from localStorage first
+    const savedSections = localStorage.getItem('learningSections');
+    if (savedSections) {
+      const parsedSections = JSON.parse(savedSections);
+      setSections(parsedSections);
       
-      // Get configuration for this time option
-      const config = getTimeConfig(totalMinutes);
-      
-      if (config) {
-        // Calculate time per section based on total time and number of sections
-        const timePerSection = config.totalMinutes / config.sections;
-        
-        setTimeConfig({
-          totalMinutes: config.totalMinutes,
-          sections: config.sections,
-          timePerSection
-        });
-        
-        // Try to load sections from localStorage first
-        const savedSections = localStorage.getItem('learningSections');
-        if (savedSections) {
-          const parsedSections = JSON.parse(savedSections);
-          setSections(parsedSections);
-          
-          // Set current section
-          if (sectionId > 0 && sectionId <= parsedSections.length) {
-            setCurrentSection(parsedSections[sectionId - 1]);
-            loadSectionContent(savedTopic, parsedSections, sectionId, timePerSection);
-          } else {
-            router.push('/learn/1');
-          }
-        } else {
-          // Generate sections if not available
-          generateSections(savedTopic, config.totalMinutes, config.sections, timePerSection);
-        }
+      if (sectionId > 0 && sectionId <= parsedSections.length) {
+        setCurrentSection(parsedSections[sectionId - 1]);
+        loadSectionContent(savedTopic, parsedSections, sectionId, timePerSection);
       } else {
-        // Invalid time option, redirect to home
-        router.push('/');
+        router.push('/learn/1');
       }
     } else {
-      // If no topic is set, redirect to home
-      router.push('/');
+      // Generate sections if not available
+      generateSections(savedTopic, config.totalMinutes, config.sections, timePerSection);
     }
-  }, [sectionId]);
+  }, [sectionId, router]); // Add router to dependencies
   
   // Generate sections for the topic
   const generateSections = async (
@@ -142,7 +165,6 @@ export default function LearnSection() {
       // parse the json
       try {
         generatedSections = JSON.parse(generatedSections);
-        console.log(generatedSections);
       } catch (e) {
         console.error('Error parsing JSON:', e);
         throw new Error('Failed to parse sections JSON');
@@ -156,7 +178,7 @@ export default function LearnSection() {
       // Set current section and load content
       if (sectionId > 0 && sectionId <= generatedSections.length) {
         setCurrentSection(generatedSections[sectionId - 1]);
-        loadSectionContent(topic, generatedSections, sectionId, timePerSection);
+        await loadSectionContent(topic, generatedSections, sectionId, timePerSection);
       } else {
         router.push('/learn/1');
       }
@@ -166,7 +188,58 @@ export default function LearnSection() {
     }
   };
   
-  // Load content for a specific section
+  // Add a new function to preload section content
+  const preloadSectionContent = async (
+    topic: string,
+    allSections: any[],
+    sectionNumber: number,
+    timePerSection: number
+  ) => {
+    if (sectionNumber < 1 || sectionNumber > allSections.length) return;
+
+    const contentKey = `learningContent_${topic}_${sectionNumber}`;
+    const savedContent = localStorage.getItem(contentKey);
+    
+    if (savedContent) return; // Already loaded
+
+    try {
+      const section = allSections[sectionNumber - 1];
+      const previousSections = allSections
+        .slice(0, sectionNumber - 1)
+        .map(s => `${s.number}. ${s.title}`)
+        .join(', ');
+      
+      const prompt = LEARNING_PROMPTS.SECTION_CONTENT
+        .replace('{{TOPIC}}', topic)
+        .replace('{{SECTION_TITLE}}', section.title)
+        .replace('{{SECTION_NUMBER}}', section.number.toString())
+        .replace('{{TOTAL_SECTIONS}}', allSections.length.toString())
+        .replace('{{TIME_PER_SECTION}}', timePerSection.toString())
+        .replace('{{PREVIOUS_SECTIONS}}', previousSections || 'None');
+      
+      const response = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate content');
+      }
+      
+      const data = await response.json();
+      const generatedContent = data.content;
+      
+      // Save content to localStorage
+      localStorage.setItem(contentKey, generatedContent);
+    } catch (error) {
+      console.error('Error preloading section content:', error);
+    }
+  };
+  
+  // Update the loadSectionContent function to trigger preloading
   const loadSectionContent = async (
     topic: string, 
     allSections: any[], 
@@ -198,8 +271,11 @@ export default function LearnSection() {
       
       if (savedContent) {
         setContent(savedContent);
-        playSectionAudio(savedContent);
         setIsLoading(false);
+        // Wait for content to be set before playing audio
+        setTimeout(() => {
+          playSectionAudio(savedContent);
+        }, 100);
       } else {
         // Generate new content
         const response = await fetch('/api/generate-content', {
@@ -221,8 +297,19 @@ export default function LearnSection() {
         localStorage.setItem(contentKey, generatedContent);
         
         setContent(generatedContent);
-        playSectionAudio(generatedContent);
         setIsLoading(false);
+        // Wait for content to be set before playing audio
+        setTimeout(() => {
+          playSectionAudio(generatedContent);
+        }, 100);
+      }
+
+      // Preload adjacent sections
+      if (sectionNumber > 1) {
+        preloadSectionContent(topic, allSections, sectionNumber - 1, timePerSection);
+      }
+      if (sectionNumber < allSections.length) {
+        preloadSectionContent(topic, allSections, sectionNumber + 1, timePerSection);
       }
     } catch (error) {
       console.error('Error loading section content:', error);
@@ -234,16 +321,33 @@ export default function LearnSection() {
   const playSectionAudio = (text: string) => {
     if (!audioRef.current) return;
     
+    setIsAudioLoading(true);
+    
     // Stop any current playback
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
     
-    // Set source and play
+    // Set up loading event handler
+    const handleCanPlay = () => {
+      audioRef.current?.play()
+        .then(() => {
+          setIsAudioLoading(false);
+        })
+        .catch(err => {
+          console.error('Failed to play audio:', err);
+          setIsAudioLoading(false);
+        });
+      
+      // Remove the event listener after it's used
+      audioRef.current?.removeEventListener('canplaythrough', handleCanPlay);
+    };
+    
+    // Add the event listener before setting the source
+    audioRef.current.addEventListener('canplaythrough', handleCanPlay);
+    
+    // Set source and load
     audioRef.current.src = `/api/text-to-speech?text=${encodeURIComponent(text)}`;
     audioRef.current.load();
-    audioRef.current.play().catch(err => {
-      console.error('Failed to play audio:', err);
-    });
   };
   
   const stopPlayback = () => {
@@ -252,17 +356,32 @@ export default function LearnSection() {
       audioRef.current.currentTime = 0;
     }
     setIsPlaying(false);
+    setIsAudioLoading(false);
   };
   
   const replayAudio = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play();
-    }
+    if (!audioRef.current) return;
+    
+    setIsAudioLoading(true);
+    
+    audioRef.current.currentTime = 0;
+    audioRef.current.play()
+      .then(() => {
+        setIsAudioLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to replay audio:', err);
+        setIsAudioLoading(false);
+      });
   };
   
-  const navigateToSection = (sectionNumber: number) => {
+  // Update the navigateToSection function to preload content before navigation
+  const navigateToSection = async (sectionNumber: number) => {
     if (sectionNumber > 0 && sectionNumber <= sections.length) {
+      // Preload the target section's content if not already loaded
+      if (topic && timeConfig) {
+        await preloadSectionContent(topic, sections, sectionNumber, timeConfig.timePerSection);
+      }
       router.push(`/learn/${sectionNumber}`);
     }
   };
@@ -329,9 +448,10 @@ export default function LearnSection() {
                   ) : (
                     <button
                       onClick={replayAudio}
-                      className="px-4 py-2 bg-blue-600 text-white rounded"
+                      disabled={isAudioLoading}
+                      className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
                     >
-                      Play Audio
+                      {isAudioLoading ? 'Loading...' : 'Play Audio'}
                     </button>
                   )}
                 </div>
