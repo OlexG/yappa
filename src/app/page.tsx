@@ -1,122 +1,76 @@
 "use client";
-import React, { useState, useRef } from 'react';
-import { ConversationManager } from '../lib/conversationManager';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { APP_CONFIG } from '@/constants/config';
 
 export default function Home() {
-  const [recording, setRecording] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [reply, setReply] = useState('');
-  const [audioUrl, setAudioUrl] = useState('');
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  // Use a ref to immediately collect audio chunks without causing re-renders
-  const audioChunksRef = useRef<Blob[]>([]);
-  // Use a ref for the conversation manager so it persists between renders
-  const conversationManagerRef = useRef(
-    new ConversationManager({
-      role: "system",
-      content:
-        "You are a licensed therapist who specializes in Cognitive Behavioral Therapy (CBT). Engage kindly, guide the user through their thoughts, and provide structured therapeutic advice. Stay in character as a CBT therapist throughout the conversation.",
-    })
-  );
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      // Clear any previous audio chunks
-      audioChunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        // Combine all collected chunks into one Blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        // Clear the ref for future recordings
-        audioChunksRef.current = [];
-
-        // Skip sending if the recording is too short
-        if (audioBlob.size < 1000) {
-          console.warn("Audio chunk too small, skipping.");
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', audioBlob, 'recording.webm');
-        // Append the conversation context as a JSON string
-        formData.append('conversation', JSON.stringify(conversationManagerRef.current.getMessages()));
-
-        try {
-          // Call the combined API route which returns transcript, AI reply, and audio as a data URL
-          const res = await fetch('/api/combined', {
-            method: 'POST',
-            body: formData,
-          });
-          const data = await res.json();
-          if (data.transcript) {
-            setTranscript(data.transcript);
-            // Add the user's message to the conversation history
-            conversationManagerRef.current.addUserMessage(data.transcript);
-          } else {
-            setTranscript('Transcription failed.');
-          }
-          if (data.reply) {
-            setReply(data.reply);
-            // Add the AI's reply to the conversation history
-            conversationManagerRef.current.addAssistantMessage(data.reply);
-          } else {
-            setReply('No AI response.');
-          }
-          // Handle the audio key correctly: set the returned audio (base64 data URL) into state
-          if (data.audio) {
-            const audioDataUrl = `data:audio/mp3;base64,${data.audio}`;
-            console.log(audioDataUrl)
-            setAudioUrl(audioDataUrl);
-          }
-        } catch (error) {
-          console.error('Error processing audio:', error);
-          setTranscript('Error processing audio');
-        }
-      };
-
-      recorder.start(); // Start recording manually
-      setRecording(true);
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
+  const [topic, setTopic] = useState('');
+  const [timeSelected, setTimeSelected] = useState<number | null>(null);
+  const router = useRouter();
+  
+  const handleStartLearning = () => {
+    if (topic && timeSelected) {
+      // Store the topic and time in localStorage for the learn page to access
+      localStorage.setItem('learningTopic', topic);
+      localStorage.setItem('learningTime', timeSelected.toString());
+      
+      // Navigate to the first section
+      router.push('/learn/1');
     }
   };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop(); // Stop recording manually
-      setRecording(false);
-    }
-  };
-
+  
   return (
-    <div style={{ padding: '2rem' }}>
-      <h1>AI Therapist</h1>
-      <button onClick={recording ? stopRecording : startRecording}>
-        {recording ? 'Stop Recording' : 'Start Recording'}
-      </button>
-      <div>
-        <h2>Transcript</h2>
-        <p>{transcript}</p>
-      </div>
-      <div>
-        <h2>AI Response</h2>
-        <p style={{ color: 'blue' }}>{reply}</p>
-      </div>
-      {audioUrl && (
-        <div>
-          <h2>Audio Response</h2>
-          <audio controls src={audioUrl}></audio>
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6 md:p-24">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8 md:p-12">
+        <h1 className="text-4xl font-bold text-center mb-8 text-blue-800">
+          Welcome to Yappa
+        </h1>
+        
+        <div className="mb-12">
+          <label className="block text-2xl font-medium text-center mb-6 text-gray-700">
+            What would you like to learn today?
+          </label>
+          <input
+            type="text"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder="Enter a topic or subject..."
+            className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
+          />
         </div>
-      )}
-    </div>
+        
+        <div className="mb-12">
+          <h2 className="text-2xl font-medium text-center mb-6 text-gray-700">
+            How much time do you have?
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {APP_CONFIG.timeOptions.map((option) => (
+              <button
+                key={option.totalMinutes}
+                onClick={() => setTimeSelected(option.totalMinutes)}
+                className={`p-5 text-lg font-medium rounded-lg transition-colors ${
+                  timeSelected === option.totalMinutes
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                }`}
+              >
+                {option.displayName}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        <div className="text-center">
+          <button
+            onClick={handleStartLearning}
+            disabled={!topic || !timeSelected}
+            className="px-8 py-4 bg-blue-600 text-white text-lg font-bold rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            Start Learning
+          </button>
+        </div>
+      </div>
+    </main>
   );
 }
