@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { LEARNING_PROMPTS } from '@/constants/prompts';
 import { getTimeConfig } from '@/constants/config';
+import Header from '@/components/Header';
 
 export default function LearnSection() {
   const [content, setContent] = useState<string>('');
@@ -267,82 +268,85 @@ export default function LearnSection() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100 p-6">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-lg">Preparing your learning content...</p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-blue-800">
-                {topic}
-              </h1>
-              <div className="mt-2 flex items-center">
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
-                    style={{ width: `${(sectionId / sections.length) * 100}%` }}
-                  ></div>
-                </div>
-                <span className="ml-2 text-sm text-gray-600">
-                  {sectionId}/{sections.length}
-                </span>
-              </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100">
+      <Header />
+      <div className="p-6">
+        <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-8">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-lg">Preparing your learning content...</p>
             </div>
-            
-            {currentSection && (
+          ) : (
+            <>
               <div className="mb-6">
-                <h2 className="text-xl font-semibold mb-2">
-                  {currentSection.number}. {currentSection.title}
-                </h2>
-                <p className="text-gray-600 italic mb-4">{currentSection.description}</p>
-                
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="whitespace-pre-line">{content}</p>
+                <h1 className="text-2xl font-bold text-blue-800">
+                  {topic}
+                </h1>
+                <div className="mt-2 flex items-center">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                    <div 
+                      className="bg-blue-600 h-2.5 rounded-full" 
+                      style={{ width: `${(sectionId / sections.length) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="ml-2 text-sm text-gray-600">
+                    {sectionId}/{sections.length}
+                  </span>
                 </div>
               </div>
-            )}
-            
-            <div className="flex justify-between items-center mt-8">
-              <button
-                onClick={() => navigateToSection(sectionId - 1)}
-                disabled={sectionId <= 1}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded disabled:opacity-50"
-              >
-                Previous
-              </button>
               
-              <div className="flex gap-3">
-                {isPlaying ? (
-                  <button
-                    onClick={stopPlayback}
-                    className="px-4 py-2 bg-red-500 text-white rounded"
-                  >
-                    Stop Audio
-                  </button>
-                ) : (
-                  <button
-                    onClick={replayAudio}
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
-                  >
-                    Play Audio
-                  </button>
-                )}
+              {currentSection && (
+                <div className="mb-6">
+                  <h2 className="text-xl font-semibold mb-2">
+                    {currentSection.number}. {currentSection.title}
+                  </h2>
+                  <p className="text-gray-600 italic mb-4">{currentSection.description}</p>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p className="whitespace-pre-line text-black">{content}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-between items-center mt-8">
+                <button
+                  onClick={() => navigateToSection(sectionId - 1)}
+                  disabled={sectionId <= 1}
+                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                
+                <div className="flex gap-3">
+                  {isPlaying ? (
+                    <button
+                      onClick={stopPlayback}
+                      className="px-4 py-2 bg-red-500 text-white rounded"
+                    >
+                      Stop Audio
+                    </button>
+                  ) : (
+                    <button
+                      onClick={replayAudio}
+                      className="px-4 py-2 bg-blue-600 text-white rounded"
+                    >
+                      Play Audio
+                    </button>
+                  )}
+                </div>
+                
+                <button
+                  onClick={() => navigateToSection(sectionId + 1)}
+                  disabled={sectionId >= sections.length}
+                  className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+                >
+                  Next
+                </button>
               </div>
-              
-              <button
-                onClick={() => navigateToSection(sectionId + 1)}
-                disabled={sectionId >= sections.length}
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

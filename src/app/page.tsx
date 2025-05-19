@@ -35,7 +35,7 @@ export default function Home() {
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="Enter a topic or subject..."
-            className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
+            className="w-full text-black p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg"
           />
         </div>
         
