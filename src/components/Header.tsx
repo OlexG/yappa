@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function Header() {
   return (
-    <header className="w-full py-4 bg-gradient-to-r from-white to-gray-300 shadow-sm">
+    <header className="w-full py-2 bg-gradient-to-r from-white to-gray-300 shadow-sm">
       <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <Image

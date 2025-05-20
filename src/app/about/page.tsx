@@ -13,9 +13,6 @@ export default function AboutPage() {
               Yappa is an AI-powered learning platform that transforms complex topics into engaging, easy-to-understand lessons.
             </p>
             <p className="text-3xl font-medium text-gray-900 leading-relaxed">
-              &nbsp;
-            </p>
-            <p className="text-3xl font-medium text-gray-900 leading-relaxed">
               Choose any topic, select your preferred learning duration, and let our AI create a personalized learning experience with audio narration.
             </p>
           </div>

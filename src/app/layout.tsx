@@ -10,8 +10,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "YAPPA'",
-  description: "Learn anything. Anywhere.",
+  title: 'YAPPA',
+  description: 'AI-powered learning platform',
   icons: {
     icon: '/yappa.png',
     apple: '/yappa.png',

@@ -264,14 +264,14 @@ export default function TryPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <main className="flex-grow bg-gradient-to-b from-white to-gray-100">
+      <main className="flex-grow bg-gradient-to-b from-white to-gray-100 flex flex-col items-center justify-center">
         <Header />
-        <div className="max-w-xl mx-auto px-6 py-12">
+        <div className="w-full max-w-xl px-6 flex-1 flex items-center justify-center">
           {showInput ? (
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="input" className="block text-sm font-medium text-gray-700 mb-2">
-                  Ask me anything
+                  Create a lesson
                 </label>
                 <textarea
                   id="input"
