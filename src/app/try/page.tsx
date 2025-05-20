@@ -271,7 +271,7 @@ export default function TryPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="input" className="block text-sm font-medium text-gray-700 mb-2">
-                  Create a lesson
+                  Create a lesson about...
                 </label>
                 <textarea
                   id="input"
