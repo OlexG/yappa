@@ -95,6 +95,31 @@ const TIME_OPTIONS = [
   { value: 240, label: '4hrs', disabled: true },
 ];
 
+const questions = [
+  {
+    id: 'subjects',
+    title: 'What topics interests you?',
+    type: 'multi-select',
+    options: subjects
+  },
+  {
+    id: 'level',
+    title: 'How advanced should we get?',
+    type: 'single-select',
+    options: learningLevels
+  },
+  {
+    id: 'tone',
+    title: 'Learning vibe?',
+    type: 'single-select',
+    options: [
+      { id: 'serious', name: 'Serious & academic', emoji: '🏫' },
+      { id: 'casual', name: 'Casual & fun', emoji: '🤙' },
+      { id: 'story', name: 'Story-driven', emoji: '🏰' },
+    ]
+  }
+];
+
 export default function LearnPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -114,21 +139,7 @@ export default function LearnPage() {
   const currentTextRef = useRef('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-
-  const questions = [
-    {
-      id: 'subjects',
-      title: 'What would you like to learn?',
-      type: 'multi-select',
-      options: subjects
-    },
-    {
-      id: 'level',
-      title: 'How advanced should we get?',
-      type: 'single-select',
-      options: learningLevels
-    }
-  ];
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -356,19 +367,24 @@ export default function LearnPage() {
     );
   };
 
-  const handleNext = () => {
-    if (currentQuestion === 0 && selectedSubjects.length === 0) return;
-    if (currentQuestion === 1 && !selectedLevel) return;
-    
-    if (currentQuestion === questions.length - 1) {
-      setShowQuestionnaire(false);
-    } else {
-      setCurrentQuestion(prev => prev + 1);
+  const handleAnswer = (answer: string) => {
+    if (questions[currentQuestion].id === 'subjects') {
+      // For subjects, we don't want to advance automatically
+      return;
     }
-  };
+    
+    setAnswers(prev => ({
+      ...prev,
+      [questions[currentQuestion].id]: answer
+    }));
 
-  const handleBack = () => {
-    setCurrentQuestion(prev => prev - 1);
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+    } else {
+      // When we reach the last question, hide the questionnaire and show the input form
+      setShowQuestionnaire(false);
+      setShowInput(true);
+    }
   };
 
   if (status === 'loading') {
@@ -429,9 +445,9 @@ export default function LearnPage() {
                   {currentQ.options.map((option) => (
                     <button
                       key={option.id}
-                      onClick={() => setSelectedLevel(option.id)}
+                      onClick={() => handleAnswer(option.name)}
                       className={`w-full p-4 rounded-lg border transition-all ${
-                        selectedLevel === option.id
+                        answers[currentQ.id] === option.name
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-blue-300'
                       }`}
@@ -448,7 +464,7 @@ export default function LearnPage() {
 
             <div className="flex justify-between items-center">
               <button
-                onClick={handleBack}
+                onClick={() => setCurrentQuestion(prev => prev - 1)}
                 disabled={currentQuestion === 0}
                 className={`px-6 py-2 rounded-lg transition-all ${
                   currentQuestion === 0
@@ -460,14 +476,22 @@ export default function LearnPage() {
               </button>
 
               <button
-                onClick={handleNext}
-                disabled={
-                  (currentQuestion === 0 && selectedSubjects.length === 0) ||
-                  (currentQuestion === 1 && !selectedLevel)
-                }
+                onClick={() => {
+                  if (currentQ.type === 'multi-select') {
+                    if (selectedSubjects.length > 0) {
+                      setAnswers(prev => ({
+                        ...prev,
+                        subjects: selectedSubjects
+                      }));
+                      setCurrentQuestion(prev => prev + 1);
+                    }
+                  } else {
+                    handleAnswer(currentQ.options[0].name);
+                  }
+                }}
+                disabled={currentQ.type === 'multi-select' ? selectedSubjects.length === 0 : !answers[currentQ.id]}
                 className={`px-8 py-3 text-white rounded-lg transition-all duration-300 ${
-                  (currentQuestion === 0 && selectedSubjects.length === 0) ||
-                  (currentQuestion === 1 && !selectedLevel)
+                  (currentQ.type === 'multi-select' ? selectedSubjects.length === 0 : !answers[currentQ.id])
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-br from-gray-700 via-black to-gray-600 hover:bg-[length:400%_400%] hover:animate-gradient-x'
                 }`}
