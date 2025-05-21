@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@auth/core": "^0.34.2",
     "elevenlabs": "^1.55.0",
     "express": "^5.1.0",
     "formidable": "^3.5.2",
     "next": "^15.2.4",
+    "next-auth": "^4.24.11",
     "openai": "^4.90.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

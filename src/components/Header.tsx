@@ -1,20 +1,28 @@
+"use client";
+
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function Header() {
+  const pathname = usePathname();
+  const isLearnPage = pathname === '/learn';
+
+  if (isLearnPage) return null;
+
   return (
     <header className="w-full py-2 bg-gradient-to-r from-white to-gray-300 shadow-sm">
       <div className="max-w-4xl mx-auto px-6 flex justify-between items-center">
         <Link href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <Image
             src="/yappa.png"
-            alt="YAPPA Logo"
+            alt="Yappa Logo"
             width={37}
             height={37}
             className="object-contain"
           />
-          <h1 className="text-3xl font-bold font-space-grotesk tracking-wider text-black">YAPPA</h1>
+          <h1 className="text-3xl font-bold font-space-grotesk tracking-wider text-black">Yappa</h1>
         </Link>
         <div className="flex gap-3">
           <Link 

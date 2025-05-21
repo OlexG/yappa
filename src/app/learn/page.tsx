@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { APP_CONFIG } from '@/constants/config';
 import { LEARNING_PROMPTS } from '@/constants/prompts';
 import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 
 const subjects = [
   {
@@ -96,6 +96,8 @@ const TIME_OPTIONS = [
 ];
 
 export default function LearnPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [topic, setTopic] = useState('');
   const [timeSelected, setTimeSelected] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -111,7 +113,6 @@ export default function LearnPage() {
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const currentTextRef = useRef('');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
 
   const questions = [
@@ -128,6 +129,12 @@ export default function LearnPage() {
       options: learningLevels
     }
   ];
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin');
+    }
+  }, [status, router]);
 
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -364,6 +371,18 @@ export default function LearnPage() {
     setCurrentQuestion(prev => prev - 1);
   };
 
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
+
   if (showQuestionnaire) {
     const currentQ = questions[currentQuestion];
     const progress = ((currentQuestion + 1) / questions.length) * 100;
@@ -458,7 +477,6 @@ export default function LearnPage() {
             </div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
@@ -600,7 +618,6 @@ export default function LearnPage() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 

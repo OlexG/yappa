@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { TranslationsProvider } from "@/components/translations-context";
+import { NextAuthProvider } from "@/components/NextAuthProvider";
+import ClientLayout from "@/components/ClientLayout";
 
 const inter = Inter({ subsets: ["latin"] });
 const spaceGrotesk = Space_Grotesk({
@@ -10,8 +12,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'YAPPA',
-  description: 'AI-powered learning platform',
+  title: 'Yappa',
+  description: 'Learn anything, anytime',
   icons: {
     icon: '/yappa.png',
     apple: '/yappa.png',
@@ -26,7 +28,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} ${spaceGrotesk.variable} antialiased`}>
-        <TranslationsProvider>{children}</TranslationsProvider>
+        <NextAuthProvider>
+          <TranslationsProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </TranslationsProvider>
+        </NextAuthProvider>
       </body>
     </html>
   );

@@ -2,8 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { LEARNING_PROMPTS } from '@/constants/prompts';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
 
 export default function LearnSection() {
   const params = useParams();
@@ -270,7 +268,6 @@ export default function LearnSection() {
   return (
     <div className="min-h-screen flex flex-col">
       <main className="flex-grow bg-gradient-to-b from-white to-gray-100">
-        <Header />
         <div className="max-w-2xl mx-auto px-6 py-12">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
@@ -349,7 +346,6 @@ export default function LearnSection() {
           )}
         </div>
       </main>
-      <Footer />
     </div>
   );
 } 
