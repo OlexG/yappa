@@ -16,7 +16,26 @@ export default function LearnSection() {
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [topic, setTopic] = useState('');
   const [timeSelected, setTimeSelected] = useState<number | null>(null);
+  const [isPreloading, setIsPreloading] = useState<{ [key: number]: boolean }>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Helper functions for localStorage
+  const savePreloadedContent = (topic: string, sectionNumber: number, content: string) => {
+    const key = `preloaded_${topic}_section_${sectionNumber}`;
+    localStorage.setItem(key, content);
+    console.log(`Saved preloaded content to localStorage for section ${sectionNumber}`);
+  };
+
+  const getPreloadedContent = (topic: string, sectionNumber: number): string | null => {
+    const key = `preloaded_${topic}_section_${sectionNumber}`;
+    return localStorage.getItem(key);
+  };
+
+  const removePreloadedContent = (topic: string, sectionNumber: number) => {
+    const key = `preloaded_${topic}_section_${sectionNumber}`;
+    localStorage.removeItem(key);
+    console.log(`Removed preloaded content from localStorage for section ${sectionNumber}`);
+  };
 
   useEffect(() => {
     // Load data from localStorage
@@ -73,25 +92,58 @@ export default function LearnSection() {
 
   useEffect(() => {
     if (currentSection && topic && timeSelected) {
-      loadSectionContent();
+      // Check localStorage for preloaded content
+      const preloadedContent = getPreloadedContent(topic, currentSection.number);
+      
+      if (preloadedContent) {
+        console.log(`Using preloaded content for section ${currentSection.number} from localStorage`);
+        setContent(preloadedContent);
+        setIsLoading(false);
+        
+        // Wait for content to be set before playing audio
+        setTimeout(() => {
+          playAudio(preloadedContent);
+        }, 100);
+        
+        // Remove from localStorage after use
+        removePreloadedContent(topic, currentSection.number);
+      } else {
+        console.log(`No preloaded content found for section ${currentSection.number}, loading...`);
+        loadSectionContent(currentSection.number, false);
+      }
+      
+      // Preload next section
+      preloadNextSection();
     }
   }, [currentSection, topic, timeSelected]);
 
-  const loadSectionContent = async () => {
-    if (!currentSection || !topic || !timeSelected) return;
+  const loadSectionContent = async (sectionNumber: number, isPreload = false) => {
+    if (!topic || !timeSelected) return;
     
-    setIsLoading(true);
+    console.log(`Loading section ${sectionNumber}, isPreload: ${isPreload}`);
+    
+    if (!isPreload) {
+      setIsLoading(true);
+    } else {
+      setIsPreloading(prev => ({ ...prev, [sectionNumber]: true }));
+    }
     
     try {
+      const section = sections[sectionNumber - 1];
+      if (!section) {
+        console.error(`Section ${sectionNumber} not found`);
+        return;
+      }
+
       const previousSections = sections
-        .slice(0, currentSection.number - 1)
+        .slice(0, section.number - 1)
         .map(s => `${s.number}. ${s.title}`)
         .join(', ');
       
       const prompt = LEARNING_PROMPTS.SECTION_CONTENT
         .replace('{{TOPIC}}', topic)
-        .replace('{{SECTION_TITLE}}', currentSection.title)
-        .replace('{{SECTION_NUMBER}}', currentSection.number.toString())
+        .replace('{{SECTION_TITLE}}', section.title)
+        .replace('{{SECTION_NUMBER}}', section.number.toString())
         .replace('{{TOTAL_SECTIONS}}', sections.length.toString())
         .replace('{{TIME_PER_SECTION}}', (timeSelected / sections.length).toString())
         .replace('{{PREVIOUS_SECTIONS}}', previousSections || 'None');
@@ -109,16 +161,56 @@ export default function LearnSection() {
       }
       
       const data = await response.json();
-      setContent(data.content);
-      setIsLoading(false);
       
-      // Wait for content to be set before playing audio
-      setTimeout(() => {
-        playAudio(data.content);
-      }, 100);
+      if (isPreload) {
+        console.log(`Preloaded content for section ${sectionNumber}`);
+        // Save to localStorage instead of React state
+        savePreloadedContent(topic, sectionNumber, data.content);
+        setIsPreloading(prev => ({ ...prev, [sectionNumber]: false }));
+      } else {
+        setContent(data.content);
+        setIsLoading(false);
+        
+        // Wait for content to be set before playing audio
+        setTimeout(() => {
+          playAudio(data.content);
+        }, 100);
+      }
     } catch (error) {
       console.error('Error generating content:', error);
-      setIsLoading(false);
+      if (!isPreload) {
+        setIsLoading(false);
+      } else {
+        setIsPreloading(prev => ({ ...prev, [sectionNumber]: false }));
+      }
+    }
+  };
+
+  const preloadNextSection = () => {
+    if (!currentSection || !topic) return;
+    
+    const nextSectionNumber = currentSection.number + 1;
+    
+    console.log('Checking for next section to preload:', {
+      current: currentSection.number,
+      next: nextSectionNumber,
+      isPreloading: isPreloading[nextSectionNumber]
+    });
+    
+    // Check if next section exists and isn't already preloaded in localStorage
+    if (nextSectionNumber <= sections.length && 
+        !getPreloadedContent(topic, nextSectionNumber) && 
+        !isPreloading[nextSectionNumber]) {
+      // Use requestIdleCallback for better performance
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => {
+          loadSectionContent(nextSectionNumber, true);
+        });
+      } else {
+        setTimeout(() => {
+          loadSectionContent(nextSectionNumber, true);
+        }, 0);
+      }
     }
   };
 
